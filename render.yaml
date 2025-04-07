@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: filmifreak-frontend
+    env: static
+    buildCommand: npm install
+    staticPublishPath: ./frontend
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: filmifreak-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        fromDatabase:
+          name: filmifreak-db
+          property: connectionString
+
+databases:
+  - name: filmifreak-db
+    databaseName: filmifreak
+    user: filmifreak
+    plan: free 
