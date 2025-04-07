@@ -15,11 +15,14 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://127.0.0.1:5501', // Matches your Live Server port
+  origin: '*', // Allow all origins in development - update this in production
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+// Serve static files from frontend directory
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -91,6 +94,10 @@ const auth = (req, res, next) => {
 };
 
 // Routes
+app.get('/', (req, res) => {
+  res.json({ message: 'FilmiFreak API is running!' });
+});
+
 app.post('/api/auth/signup', async (req, res) => {
   console.log('Signup request received:', req.body);
   const { name, email, password } = req.body;
@@ -160,8 +167,5 @@ app.get('/api/bookings', auth, async (req, res) => {
   }
 });
 
-// Start Server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Export the Express API
+module.exports = app;
