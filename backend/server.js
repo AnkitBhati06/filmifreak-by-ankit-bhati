@@ -15,14 +15,25 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: '*', // Allow all origins in development - update this in production
+  origin: [
+    'https://filmifreak-by-ankit-bhati-qtuk.vercel.app',
+    'https://filmifreak-by-ankit-bhati-qtuk-1ly1kfxey-ankitbhati06s-projects.vercel.app',
+    'http://localhost:5501'
+  ],
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json());
 
 // Serve static files from frontend directory
 app.use(express.static(path.join(__dirname, '../frontend')));
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
+});
 
 // MongoDB Connection
 const connectDB = async () => {

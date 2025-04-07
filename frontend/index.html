@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FilmiFreak - Book Movies Online</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Add QR code library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <!-- Add html2canvas for ticket download -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
 	* {
     padding: 0;
@@ -1135,6 +1139,84 @@ footer {
         justify-content: center;
     }
 }
+
+/* Ticket Display Modal */
+.ticket-content {
+    background: white;
+    color: black;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px;
+}
+
+.ticket-header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px dashed #ccc;
+    padding-bottom: 20px;
+}
+
+.ticket-header h1 {
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.ticket-details {
+    margin: 20px 0;
+}
+
+.ticket-movie {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.label {
+    font-weight: bold;
+    color: #666;
+}
+
+.ticket-qr {
+    text-align: center;
+    margin: 20px 0;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.ticket-footer {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px dashed #ccc;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.ticket-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    padding: 20px;
+}
+
+@media print {
+    .ticket-content {
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+    }
+    .ticket-actions {
+        display: none;
+    }
+}
 </style>
 </head>
 <body>
@@ -1781,6 +1863,13 @@ footer {
 
     
 <script>
+    // API Configuration
+    const API_CONFIG = {
+        BASE_URL: window.location.hostname.includes('localhost') 
+            ? 'https://filmifreak-by-ankit-bhati-qtuk-1ly1kfxey-ankitbhati06s-projects.vercel.app'
+            : 'https://filmifreak-by-ankit-bhati-qtuk.vercel.app'
+    };
+
     const pages = {
         'home': () => window.scrollTo({ top: 0, behavior: 'smooth' }),
         'movies': () => document.getElementById('movies-section').scrollIntoView({ behavior: 'smooth' }),
@@ -1899,22 +1988,28 @@ footer {
      
             console.log('Login form submitted');
             try {
-                const response = await fetch('http://localhost:3000/api/auth/login', {
+                const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/login`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({ email, password }),
+                    mode: 'cors'
                 });
-    
-                const data = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    alert('Login successful!');
-                    loginModal.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                } else {
-                    alert(data.message);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Login failed');
                 }
+
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                alert('Login successful!');
+                loginModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
             } catch (error) {
+                console.error('Login error:', error);
                 alert('Error logging in: ' + error.message);
             }
         });
@@ -1934,22 +2029,28 @@ footer {
     
             console.log('Signup form submitted');
             try {
-                const response = await fetch('http://localhost:3000/api/auth/signup', {
+                const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/signup`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({ name, email, password }),
+                    mode: 'cors'
                 });
-    
-                const data = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    alert('Signup successful!');
-                    signupModal.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                } else {
-                    alert(data.message);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Signup failed');
                 }
+
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                alert('Signup successful!');
+                signupModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
             } catch (error) {
+                console.error('Signup error:', error);
                 alert('Error signing up: ' + error.message);
             }
         });
@@ -2102,12 +2203,6 @@ footer {
     
         // Booking submission
         document.querySelector('.proceed-btn').addEventListener('click', async () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                alert('Please log in to book tickets');
-                return;
-            }
-    
             const movieTitle = modalTitle.textContent;
             const moviePoster = modalPoster.src;
             const movieGenre = modalGenre.textContent;
@@ -2135,54 +2230,135 @@ footer {
                 seats,
                 totalAmount,
             };
-    
-            try {
-                const response = await fetch('http://localhost:3000/api/bookings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(bookingData),
-                });
-    
-                const data = await response.json();
-                if (response.ok) {
-                    alert('Booking successful!');
-                    resetModal();
-                    bookingModal.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                } else {
-                    alert(data.message);
-                }
-            } catch (error) {
-                alert('Error creating booking: ' + error.message);
-            }
+
+            // Show ticket immediately
+            showTicket(bookingData);
+            
+            // Reset modal
+            resetModal();
+            bookingModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
         });
+
+        function showTicket(bookingData) {
+            // Update ticket content
+            document.getElementById('ticket-movie-title').textContent = bookingData.movie.title;
+            document.getElementById('ticket-movie-genre').textContent = bookingData.movie.genre;
+            document.getElementById('ticket-theater').textContent = bookingData.theater.name;
+            document.getElementById('ticket-date').textContent = bookingData.date;
+            document.getElementById('ticket-time').textContent = bookingData.theater.showtime;
+            document.getElementById('ticket-seats').textContent = bookingData.seats.join(', ');
+            document.getElementById('ticket-amount').textContent = `₹${bookingData.totalAmount}`;
+
+            // Generate QR code
+            const qr = qrcode(0, 'M');
+            const ticketData = JSON.stringify({
+                movie: bookingData.movie.title,
+                theater: bookingData.theater.name,
+                date: bookingData.date,
+                time: bookingData.theater.showtime,
+                seats: bookingData.seats,
+                amount: bookingData.totalAmount
+            });
+            qr.addData(ticketData);
+            qr.make();
+            const qrCodeElement = document.getElementById('ticket-qr-code');
+            qrCodeElement.innerHTML = qr.createImgTag(4);
+
+            // Show ticket modal
+            const ticketModal = document.getElementById('ticket-modal');
+            ticketModal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+
+            // Add event listeners for ticket actions
+            const printTicketBtn = document.getElementById('print-ticket');
+            const downloadTicketBtn = document.getElementById('download-ticket');
+
+            printTicketBtn.addEventListener('click', () => {
+                window.print();
+            });
+
+            downloadTicketBtn.addEventListener('click', () => {
+                const ticketContent = document.getElementById('ticket-content');
+                html2canvas(ticketContent).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'ticket.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                });
+            });
+
+            // Close ticket modal
+            ticketModal.querySelector('.close-btn').addEventListener('click', () => {
+                ticketModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            });
+
+            window.addEventListener('click', (e) => {
+                if (e.target === ticketModal) {
+                    ticketModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        }
     });
-    
-    // Reset modal function
-    function resetModal() {
-        const selectedSeats = document.querySelectorAll('.seat.selected');
-        selectedSeats.forEach(seat => seat.classList.remove('selected'));
-    
-        const selectedSeatsSpan = document.querySelector('.summary-row:nth-child(4) span:last-child');
-        const ticketPriceSpan = document.querySelector('.summary-row:nth-child(5) span:last-child');
-        const convenienceFeeSpan = document.querySelector('.summary-row:nth-child(6) span:last-child');
-        const totalAmountSpan = document.querySelector('.summary-total span:last-child');
-    
-        selectedSeatsSpan.textContent = '-';
-        ticketPriceSpan.textContent = '₹0';
-        convenienceFeeSpan.textContent = '₹0';
-        totalAmountSpan.textContent = '₹0';
-    
-        const activeDate = document.querySelector('.date-item.active');
-        if (activeDate) activeDate.classList.remove('active');
-        document.querySelector('.date-item').classList.add('active');
-    
-        document.querySelector('.booking-section').style.display = 'block';
-        document.querySelector('.seat-selection').style.display = 'none';
-    }
-    </script>
+</script>
+
+<!-- Ticket Display Modal -->
+<div id="ticket-modal" class="auth-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Your Ticket</h2>
+            <button class="close-btn">&times;</button>
+        </div>
+        <div class="ticket-content" id="ticket-content">
+            <div class="ticket-header">
+                <h1>FilmiFreak</h1>
+                <p>Your Entertainment Partner</p>
+            </div>
+            <div class="ticket-details">
+                <div class="ticket-movie">
+                    <h3 id="ticket-movie-title"></h3>
+                    <p id="ticket-movie-genre"></p>
+                </div>
+                <div class="ticket-info">
+                    <div class="info-row">
+                        <span class="label">Theater:</span>
+                        <span id="ticket-theater"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Date:</span>
+                        <span id="ticket-date"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Time:</span>
+                        <span id="ticket-time"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Seats:</span>
+                        <span id="ticket-seats"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Amount:</span>
+                        <span id="ticket-amount"></span>
+                    </div>
+                </div>
+                <div class="ticket-qr">
+                    <div id="ticket-qr-code"></div>
+                    <p>Scan this QR code at the theater</p>
+                </div>
+            </div>
+            <div class="ticket-footer">
+                <p>Thank you for choosing FilmiFreak!</p>
+                <p>Please arrive at least 30 minutes before the show</p>
+            </div>
+        </div>
+        <div class="ticket-actions">
+            <button id="print-ticket" class="auth-submit-btn">Print Ticket</button>
+            <button id="download-ticket" class="auth-submit-btn">Download Ticket</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
