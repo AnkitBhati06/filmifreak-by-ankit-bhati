@@ -16,9 +16,9 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: [
-    'https://filmifreak-by-ankit-bhati-qtuk.vercel.app',
-    'https://filmifreak-by-ankit-bhati-qtuk-1ly1kfxey-ankitbhati06s-projects.vercel.app',
-    'http://localhost:5501'
+    'https://filmifreak-by-ankit-bhati-qtuk-git-main-ankitbhati06s-projects.vercel.app',
+    'http://localhost:5501',
+    'http://localhost:3000'
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
